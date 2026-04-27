@@ -160,21 +160,23 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.2.0` —— 软层 + 硬层都已落地。已实现：
+`v0.3.0` —— Bash 绕过拦截 + 持续测试套件落地。已实现：
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` 5 条核心规则（中文）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
-- ✅ **PreToolUse 硬性拦截**：未 Read/Write 过的已存在文件不允许 Edit/Write（v0.2.0 新增）
-- ✅ **PostToolUse 读取追踪**：每次 Read/Write 后把目标文件登记进会话状态（v0.2.0 新增）
+- ✅ **PreToolUse(Edit\|Write) 硬性拦截**：未 Read/Write 过的已存在文件不允许 Edit/Write（v0.2.0）
+- ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny（v0.3.0 新增）
+- ✅ **PostToolUse 读取追踪**：每次 Read/Write 后把目标文件登记进会话状态
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：可通过 `/plugin marketplace add <path>` 在本地安装
+- ✅ **测试套件** [`tests/`](tests/)（v0.3.0 新增）：18 个 unittest 用 subprocess 黑盒测试三个钩子脚本，零第三方依赖
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
-- ⏳ Bash 命令的 `--no-verify` / `--force` / `chmod 777` 等绕过模式硬拦截
 - ⏳ Stop 钩子的状态化检查（避免无状态死循环）
 - ⏳ 旧会话 state 文件的 GC（避免长期使用累积）
+- ⏳ `rules/` 的英文镜像
