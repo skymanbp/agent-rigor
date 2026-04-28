@@ -160,20 +160,19 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.3.1` —— 修复 v0.3.0 的安装阻塞 bug（manifest 中显式列出标准位置组件路径会与自动发现冲突）。功能层与 v0.3.0 相同。已实现：
+`v0.3.2` —— 修复 v0.3.1 的钩子作用域 bug（`PostToolUse` 在项目目录外不触发，导致项目外文件 Read 后再 Edit 被误拒）。已实现：
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` 5 条核心规则（中文）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
-- ✅ **PreToolUse(Edit\|Write) 硬性拦截**：未 Read/Write 过的已存在文件不允许 Edit/Write（v0.2.0）
-- ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny（v0.3.0 新增）
-- ✅ **PostToolUse 读取追踪**：每次 Read/Write 后把目标文件登记进会话状态
+- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2 重构）：Read 直接录入会话状态、Edit/Write 检查未读已存在文件 → deny。录入与拦截在同一钩子事件 → 作用域一致，不再有"项目外文件录不上"的盲区。
+- ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
-- ✅ `.claude-plugin/marketplace.json`：可通过 `/plugin marketplace add <path>` 在本地安装
-- ✅ **测试套件** [`tests/`](tests/)（v0.3.0 新增）：18 个 unittest 用 subprocess 黑盒测试三个钩子脚本，零第三方依赖
+- ✅ `.claude-plugin/marketplace.json`：可通过 `claude plugin marketplace add <path>` + `claude plugin install anti-laziness@agent-rigor` 本地安装
+- ✅ **测试套件** [`tests/`](tests/)：22 个 unittest 用 subprocess 黑盒测试三个钩子脚本，零第三方依赖
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
