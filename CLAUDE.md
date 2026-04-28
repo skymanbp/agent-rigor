@@ -160,19 +160,20 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.3.2` —— 修复 v0.3.1 的钩子作用域 bug（`PostToolUse` 在项目目录外不触发，导致项目外文件 Read 后再 Edit 被误拒）。已实现：
+`v0.4.0` —— Read-cache escape hatch（应对 Claude Code Read 缓存吞钩子的死锁）。已实现：
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` 5 条核心规则（中文）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
-- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2 重构）：Read 直接录入会话状态、Edit/Write 检查未读已存在文件 → deny。录入与拦截在同一钩子事件 → 作用域一致，不再有"项目外文件录不上"的盲区。
+- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny。录入与拦截在同一钩子事件，作用域一致。
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
+- ✅ **Read-cache escape hatch**（v0.4.0 新增）：当 Claude Code 缓存了 Read 结果导致 Read 工具调用未触发 → state 永远录不上 → Edit 假阳性拒。Agent 可调用 `python "$CLAUDE_PLUGIN_ROOT/hooks/scripts/register_read.py" --file PATH --hash <SHA256>` 显式登记；`bash_guard.py` 在 PreToolUse 阶段重算磁盘 hash 验证，匹配才录入 → deny 给出根因式诊断。Hash 闸门防止 escape hatch 退化为 laziness vector。
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：可通过 `claude plugin marketplace add <path>` + `claude plugin install anti-laziness@agent-rigor` 本地安装
-- ✅ **测试套件** [`tests/`](tests/)：22 个 unittest 用 subprocess 黑盒测试三个钩子脚本，零第三方依赖
+- ✅ **测试套件** [`tests/`](tests/)：33 个 unittest 用 subprocess 黑盒测试四个钩子脚本，零第三方依赖
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
