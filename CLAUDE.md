@@ -172,24 +172,25 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.5.1` —— GitHub Actions CI（每次 push / PR 自动跑测试套件）。功能层与 v0.5.0 相同。已实现：
+`v0.6.0` —— Stop 钩子上线，rule 06 从软规则升级为硬执行。
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` **6** 条核心规则（中文，v0.5.0 新增 06）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
-- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny。录入与拦截在同一钩子事件，作用域一致。
+- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
-- ✅ **Read-cache escape hatch**（v0.4.0 新增）：当 Claude Code 缓存了 Read 结果导致 Read 工具调用未触发 → state 永远录不上 → Edit 假阳性拒。Agent 可调用 `python "$CLAUDE_PLUGIN_ROOT/hooks/scripts/register_read.py" --file PATH --hash <SHA256>` 显式登记；`bash_guard.py` 在 PreToolUse 阶段重算磁盘 hash 验证，匹配才录入 → deny 给出根因式诊断。Hash 闸门防止 escape hatch 退化为 laziness vector。
+- ✅ **Read-cache escape hatch**（v0.4.0）：`register_read.py` + `bash_guard` 重算 SHA-256 闸门
+- ✅ **Stop 钩子的 rule 06 硬执行**（v0.6.0 新增）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息 — 含 done-claim（`已解决`/`改好了`/`fixed`/`done` 等）但缺收敛证据（无 `$ ` 命令输出、无 test 计数、无 `重触发` 关键词、无 fenced code block）→ 返回 `{"decision": "block", "reason": <rule-06 提醒>}` 强制再走一轮。一次性守卫：`last_blocked_turn` 持久化在会话 state 文件，turn ∈ `[last+1, last+3]` 的宽限窗口内不重复 block，避免死循环。
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
-- ✅ `.claude-plugin/marketplace.json`：可通过 `claude plugin marketplace add <path>` + `claude plugin install anti-laziness@agent-rigor` 本地安装
-- ✅ **测试套件** [`tests/`](tests/)：35 个 unittest 用 subprocess 黑盒测试四个钩子脚本，零第三方依赖
-- ✅ **GitHub Actions CI**（v0.5.1 新增）：[`tests` workflow](.github/workflows/test.yml) 在 push / PR 时自动在 ubuntu-latest + windows-latest（Python 3.13）跑 `python -m unittest discover tests`
+- ✅ `.claude-plugin/marketplace.json`：本地安装入口
+- ✅ **测试套件** [`tests/`](tests/)：51 个 unittest（v0.6.0 +16 stop_guard cases）
+- ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
-- ⏳ Stop 钩子的状态化检查（避免无状态死循环）
+- ⏳ Stop 钩子的深度文件声明验证（解析"我修改了 X" → 验 mtime / git diff，v0.7 候选）
 - ⏳ 旧会话 state 文件的 GC（避免长期使用累积）
 - ⏳ `rules/` 的英文镜像
