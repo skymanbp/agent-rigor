@@ -172,7 +172,7 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.6.2` —— `rules/` 英文镜像。`rules/en/00-index.md` + `01..06*.md` 完整翻译；中文是 canonical，英文用于非 CJK 读者 + 把规则当作非 Claude agent 的 system prompt 片段使用。
+`v0.7.0` —— Stop hook 深度 rule-06 强制。在 v0.6.0 启发式之上加两层：(1) hedge-near-done 检测（rule 01 在 Stop 边界投影：`我觉得修好了` / `I think fixed` / `probably done` 类不自信声称即拒）；(2) 4 题自答检测（evidence 存在但缺 `rule 06` / `收敛` / `自答` / `重触发` 等收敛标记**且**4 题中匹配 < 2 → 拒）。三层决策树独立 reason，agent 看到具体哪一层 fail。
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` **6** 条核心规则（中文 canonical + v0.6.2 新增 [`rules/en/`](rules/en/) 英文镜像）
@@ -180,18 +180,22 @@ anti-laziness/
 - ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
 - ✅ **Read-cache escape hatch**（v0.4.0）：`register_read.py` + `bash_guard` 重算 SHA-256 闸门
-- ✅ **Stop 钩子的 rule 06 硬执行**（v0.6.0 新增）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息 — 含 done-claim（`已解决`/`改好了`/`fixed`/`done` 等）但缺收敛证据（无 `$ ` 命令输出、无 test 计数、无 `重触发` 关键词、无 fenced code block）→ 返回 `{"decision": "block", "reason": <rule-06 提醒>}` 强制再走一轮。一次性守卫：`last_blocked_turn` 持久化在会话 state 文件，turn ∈ `[last+1, last+3]` 的宽限窗口内不重复 block，避免死循环。
+- ✅ **Stop 钩子的 rule 06 硬执行**（v0.6.0 + v0.7.0 加深）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息，三层决策：
+  - **Layer (a) v0.6.0**：含 done-claim 但完全无 evidence → 拒
+  - **Layer (b) v0.7.0**：含 done-claim + hedge 在 50 字符内（`我觉得` / `I think` / `probably` 等首人称不确定语）→ 拒（rule 01 投影）
+  - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记（`rule 06` / `自答` / `收敛` / `重触发` 等）**且** 4 题（真解决 / 更好方案 / 哪些没验 / 验证合理）匹配 < 2 → 拒
+  - 一次性守卫：`last_blocked_turn` 持久化，turn ∈ `[last+1, last+3]` 宽限窗口内不重复 block
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：本地安装入口
-- ✅ **测试套件** [`tests/`](tests/)：60 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state）
+- ✅ **测试套件** [`tests/`](tests/)：67 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state / v0.7.0 +7 hedge & quiz）
 - ✅ **手动 GC**（v0.6.1 新增）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md) slash 命令；`--dry-run`/`--apply` 互斥；默认 30 天阈值；只动 `${CLAUDE_PLUGIN_DATA}/sessions/`
 - ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
-- ⏳ Stop 钩子的深度文件声明验证（解析"我修改了 X" → 验 mtime / git diff，v0.7 候选）
+- ⏳ Stop 钩子的**深度文件声明验证**（解析"我修改了 X" → 验 git diff / mtime；当前 v0.7.0 加深的是 self-quiz 这一面，**文件声明验真**仍是 v0.8 候选）
 - ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC；自动需要 last_gc.txt 节流）
 - ⏳ 英文 prompts（v0.6.2 翻了 rules/en/ 但 prompts/session-start.md 仍是中文 → 仅 Claude Code 中文用户受益于钩子注入；英文镜像主要用于复制到其他 LLM）
