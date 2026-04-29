@@ -172,7 +172,7 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.5.0` —— 新增 rule 06 "验证收敛"（post-fix verify-and-converge）。已实现：
+`v0.5.1` —— GitHub Actions CI（每次 push / PR 自动跑测试套件）。功能层与 v0.5.0 相同。已实现：
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` **6** 条核心规则（中文，v0.5.0 新增 06）
@@ -185,7 +185,8 @@ anti-laziness/
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：可通过 `claude plugin marketplace add <path>` + `claude plugin install anti-laziness@agent-rigor` 本地安装
-- ✅ **测试套件** [`tests/`](tests/)：33 个 unittest 用 subprocess 黑盒测试四个钩子脚本，零第三方依赖
+- ✅ **测试套件** [`tests/`](tests/)：35 个 unittest 用 subprocess 黑盒测试四个钩子脚本，零第三方依赖
+- ✅ **GitHub Actions CI**（v0.5.1 新增）：[`tests` workflow](.github/workflows/test.yml) 在 push / PR 时自动在 ubuntu-latest + windows-latest（Python 3.13）跑 `python -m unittest discover tests`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
