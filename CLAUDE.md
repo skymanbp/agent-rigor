@@ -172,10 +172,10 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.6.1` —— Session state GC（手动）。功能层与 v0.6.0 相同，新增 `gc_state.py` + `/anti-laziness:gc` slash 命令。
+`v0.6.2` —— `rules/` 英文镜像。`rules/en/00-index.md` + `01..06*.md` 完整翻译；中文是 canonical，英文用于非 CJK 读者 + 把规则当作非 Claude agent 的 system prompt 片段使用。
 
 - ✅ 标准 Claude Code 插件目录结构
-- ✅ `rules/` **6** 条核心规则（中文，v0.5.0 新增 06）
+- ✅ `rules/` **6** 条核心规则（中文 canonical + v0.6.2 新增 [`rules/en/`](rules/en/) 英文镜像）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
 - ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
@@ -194,4 +194,4 @@ anti-laziness/
 
 - ⏳ Stop 钩子的深度文件声明验证（解析"我修改了 X" → 验 mtime / git diff，v0.7 候选）
 - ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC；自动需要 last_gc.txt 节流）
-- ⏳ `rules/` 的英文镜像
+- ⏳ 英文 prompts（v0.6.2 翻了 rules/en/ 但 prompts/session-start.md 仍是中文 → 仅 Claude Code 中文用户受益于钩子注入；英文镜像主要用于复制到其他 LLM）
