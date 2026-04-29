@@ -172,7 +172,7 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.6.0` —— Stop 钩子上线，rule 06 从软规则升级为硬执行。
+`v0.6.1` —— Session state GC（手动）。功能层与 v0.6.0 相同，新增 `gc_state.py` + `/anti-laziness:gc` slash 命令。
 
 - ✅ 标准 Claude Code 插件目录结构
 - ✅ `rules/` **6** 条核心规则（中文，v0.5.0 新增 06）
@@ -186,11 +186,12 @@ anti-laziness/
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：本地安装入口
-- ✅ **测试套件** [`tests/`](tests/)：51 个 unittest（v0.6.0 +16 stop_guard cases）
+- ✅ **测试套件** [`tests/`](tests/)：60 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state）
+- ✅ **手动 GC**（v0.6.1 新增）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md) slash 命令；`--dry-run`/`--apply` 互斥；默认 30 天阈值；只动 `${CLAUDE_PLUGIN_DATA}/sessions/`
 - ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
 - ⏳ Stop 钩子的深度文件声明验证（解析"我修改了 X" → 验 mtime / git diff，v0.7 候选）
-- ⏳ 旧会话 state 文件的 GC（避免长期使用累积）
+- ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC；自动需要 last_gc.txt 节流）
 - ⏳ `rules/` 的英文镜像
