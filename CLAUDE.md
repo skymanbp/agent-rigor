@@ -76,6 +76,17 @@
 - 更新记忆时必须**全局检查**：是否有错误、过时、冗余的条目。
 - 记忆是过去某时刻的快照，使用前要核对当前状态。
 
+### 2.8 改完必须收敛验证
+
+- 任何修复 / 更新 / 补丁完成后，**禁止**直接声称完成；先做 [`rules/06-verify-convergence.md`](rules/06-verify-convergence.md) 的 5 个子步骤：
+  1. **重触发原症状** — 用用户最初描述失败的同一条命令重跑，确认报错消失
+  2. **边界 + 反向用例** — 至少 1 个边界 + 1 个反向用例
+  3. **连带不破坏** — 既有测试 / lint / 类型检查全跑
+  4. **强制自答 4 题** — 是否真解决？有无更好方案？哪些没验？验证是否合理？
+  5. **量化优于定性**（性能 / 竞态 / 兼容性场景）— 数字 / 重跑 N 次 / 测试矩阵
+- 上述任意一步揭示 "未解决 / 未覆盖" → **回到 2.1 七问**重新分析根源，再修，再验，**直到收敛**。
+- 禁止：**"改完没报错"** / **"测试通过"** / **"本地能跑"** / **"看起来对了"** / **"上次类似的应该差不多"** 当作收敛证据。
+
 ---
 
 ## 3. 仓库结构（开发者视角）
@@ -100,7 +111,8 @@ anti-laziness/
 │   ├── 02-systematic-not-reactive.md
 │   ├── 03-root-cause.md
 │   ├── 04-full-context.md
-│   └── 05-cite-sources.md
+│   ├── 05-cite-sources.md
+│   └── 06-verify-convergence.md
 ├── prompts/                         # 给钩子注入用的提示词片段（汇总自 rules/）
 │   ├── session-start.md             # SessionStart 注入内容
 │   └── user-prompt.md               # UserPromptSubmit 注入内容
@@ -160,10 +172,10 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.4.0` —— Read-cache escape hatch（应对 Claude Code Read 缓存吞钩子的死锁）。已实现：
+`v0.5.0` —— 新增 rule 06 "验证收敛"（post-fix verify-and-converge）。已实现：
 
 - ✅ 标准 Claude Code 插件目录结构
-- ✅ `rules/` 5 条核心规则（中文）
+- ✅ `rules/` **6** 条核心规则（中文，v0.5.0 新增 06）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
 - ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny。录入与拦截在同一钩子事件，作用域一致。
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
