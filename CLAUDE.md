@@ -1,4 +1,4 @@
-# CLAUDE.md — anti-laziness 项目说明
+# CLAUDE.md — cc-enslaver 项目说明
 
 > 本文件是仓库内的 **项目级指令**，会在 Claude Code 每次启动该仓库时被自动加载。
 > 它同时是这个插件存在的**第一性原则声明**：插件本身就是为了把这些原则强制注入到每一次 AI 协作中。
@@ -7,7 +7,7 @@
 
 ## 1. 项目目标
 
-`anti-laziness` 是一个 **Claude Code 插件 + LLM-agnostic 规则包**，目的只有一个：
+`cc-enslaver` 是一个 **Claude Code 插件 + LLM-agnostic 规则包**，目的只有一个：
 
 > **杜绝 Claude Code（或任何其他 AI 代码助手）的"偷懒行为"。**
 
@@ -87,6 +87,22 @@
 - 上述任意一步揭示 "未解决 / 未覆盖" → **回到 2.1 七问**重新分析根源，再修，再验，**直到收敛**。
 - 禁止：**"改完没报错"** / **"测试通过"** / **"本地能跑"** / **"看起来对了"** / **"上次类似的应该差不多"** 当作收敛证据。
 
+### 2.9 声称完成前必须做忠实自答（rule 07）
+
+- rule 06 验"修的部分对不对"（技术轴）；rule 07 验"用户**要求的全部**做了吗、按**原标准**做了吗"（契约轴）。两轴不同维度，**必须分别回答**，不允许互相替代。
+- 任务声称完成前，**禁止**直接 ship；先做 [`rules/07-task-fidelity.md`](rules/07-task-fidelity.md) 的 5 步检查 + 3 题自答：
+  1. **拆解原始请求** — 回到用户最初消息，列出所有显式动词命令、明示的程度词、隐含连带项
+  2. **逐项核对** — 每个子项标 ✅ 完成 / ⚠️ 降级 / ❌ 未做 + 证据 / 原因
+  3. **标准达到性** — 用户每个程度词（强制 / 完整 / 严格 / 所有 / 立即 / 全面）都落地为可验证的硬动作（钩子 / 断言 / 测试），不是软文档
+  4. **范围不溢出** — 没做用户没要求的重构 / 抽象 / 改名
+  5. **半成品声明** — 所有 TODO / FIXME / "暂时" 显式列出
+  6. **自答 3 题** —
+     - **覆盖性**：原始请求拆几项？做了哪几项？哪些没做？为什么？
+     - **标准性**：每个程度词都落地为硬动作了吗？哪些只是软文档？
+     - **忠实性**：偷换概念？降级标准？范围溢出？藏 TODO？
+- 上述任意一项揭示 "遗漏 / 降级 / 偷换 / 半成品藏匿" → **回到检查 1** 或主动停下来跟用户对齐，**禁止**单方面宣告完成。
+- 禁止：**"主要部分都做了"** / **"应该覆盖了"** / 用户要 A、B、C 但只交付 A、B / 用户要"强制"但实现是"软建议" / 留 TODO 说"完成" / 用 rule 06 的收敛报告代替 rule 07 自答。
+
 ---
 
 ## 3. 仓库结构（开发者视角）
@@ -94,7 +110,7 @@
 > 完整架构图与组件职责见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
 ```
-anti-laziness/
+cc-enslaver/
 ├── .claude-plugin/
 │   └── plugin.json                  # 插件清单（Claude Code 适配层）
 ├── CLAUDE.md                        # 本文件 —— 项目指令
@@ -112,7 +128,8 @@ anti-laziness/
 │   ├── 03-root-cause.md
 │   ├── 04-full-context.md
 │   ├── 05-cite-sources.md
-│   └── 06-verify-convergence.md
+│   ├── 06-verify-convergence.md
+│   └── 07-task-fidelity.md
 ├── prompts/                         # 给钩子注入用的提示词片段（汇总自 rules/）
 │   ├── session-start.md             # SessionStart 注入内容
 │   └── user-prompt.md               # UserPromptSubmit 注入内容
@@ -121,8 +138,8 @@ anti-laziness/
 │   └── scripts/
 │       └── inject_context.py        # 单一脚本，按 --event 切分注入逻辑
 ├── commands/                        # 用户主动调用的 slash 命令
-│   ├── checklist.md                 # /anti-laziness:checklist
-│   └── verify.md                    # /anti-laziness:verify
+│   ├── checklist.md                 # /cc-enslaver:checklist
+│   └── verify.md                    # /cc-enslaver:verify
 ├── agents/                          # 子代理
 │   └── verifier.md                  # 独立验证子代理
 └── skills/
@@ -172,30 +189,35 @@ anti-laziness/
 
 ## 6. 当前版本
 
-`v0.7.0` —— Stop hook 深度 rule-06 强制。在 v0.6.0 启发式之上加两层：(1) hedge-near-done 检测（rule 01 在 Stop 边界投影：`我觉得修好了` / `I think fixed` / `probably done` 类不自信声称即拒）；(2) 4 题自答检测（evidence 存在但缺 `rule 06` / `收敛` / `自答` / `重触发` 等收敛标记**且**4 题中匹配 < 2 → 拒）。三层决策树独立 reason，agent 看到具体哪一层 fail。
+`v0.9.0` —— **项目重命名：`anti-laziness` → `cc-enslaver`（marketplace `agent-rigor` → `cc-enslaver`）**。所有五层名字（plugin name、marketplace name、GitHub repo、slash 命令前缀、状态目录基名）现在统一为单一标识符 `cc-enslaver`。无任何规则 / 钩子 / 测试行为变化，只是字面替换 + 版本号 bump。详见 `CHANGELOG.md` v0.9.0 段（含改名后果与连带影响）。
+
+之前版本要点保留：
+
+- **v0.8.0** —— 新增 rule 07（任务忠实 / 请求覆盖 / 无降级）+ Stop hook Layer (d) 强制收尾自答。rule 06 解决"症状-根因"轴（修的部分对不对），rule 07 解决"请求-交付"轴（用户要的全做了吗、按原标准做了吗）。两轴不同维度，**必须分别回答**。Layer (d) 在 (a)(b)(c) 全过后再检查：含 done-claim + evidence + rule-06 自答，**且**有 rule-07 标记（`rule 07` / `任务忠实` / `请求覆盖` / `无降级` / `task fidelity` / `no degradation` / ✅ 完成 列表行等）**或**至少 2/3 自答题（覆盖性 / 标准性 / 忠实性）匹配，才允许 Stop。
 
 - ✅ 标准 Claude Code 插件目录结构
-- ✅ `rules/` **6** 条核心规则（中文 canonical + v0.6.2 新增 [`rules/en/`](rules/en/) 英文镜像）
+- ✅ `rules/` **7** 条核心规则（中文 canonical + v0.6.2 / v0.8.0 同步的 [`rules/en/`](rules/en/) 英文镜像）
 - ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
 - ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
 - ✅ **Read-cache escape hatch**（v0.4.0）：`register_read.py` + `bash_guard` 重算 SHA-256 闸门
-- ✅ **Stop 钩子的 rule 06 硬执行**（v0.6.0 + v0.7.0 加深）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息，三层决策：
-  - **Layer (a) v0.6.0**：含 done-claim 但完全无 evidence → 拒
+- ✅ **Stop 钩子四层决策**（v0.6.0 → v0.7.0 → v0.8.0 累加）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息：
+  - **Layer (a) v0.6.0**：含 done-claim 但完全无 evidence → 拒（rule 06 base）
   - **Layer (b) v0.7.0**：含 done-claim + hedge 在 50 字符内（`我觉得` / `I think` / `probably` 等首人称不确定语）→ 拒（rule 01 投影）
-  - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记（`rule 06` / `自答` / `收敛` / `重触发` 等）**且** 4 题（真解决 / 更好方案 / 哪些没验 / 验证合理）匹配 < 2 → 拒
+  - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记（`rule 06` / `自答` / `收敛` / `重触发` 等）**且** 4 题（真解决 / 更好方案 / 哪些没验 / 验证合理）匹配 < 2 → 拒（rule 06 deep）
+  - **Layer (d) v0.8.0**：通过 (a)(b)(c) 但缺忠实标记（`rule 07` / `任务忠实` / `请求覆盖` / `原始请求` / `无降级` / `无遗漏` / `task fidelity` / `request coverage` / `no degradation` / `no omission` / `no scope creep` / `covered all` / `all requested` / ✅ 完成 列表行）**且** 3 题（覆盖性 / 标准性 / 忠实性）匹配 < 2 → 拒（rule 07）
   - 一次性守卫：`last_blocked_turn` 持久化，turn ∈ `[last+1, last+3]` 宽限窗口内不重复 block
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
 - ✅ 2 个 slash 命令
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill
 - ✅ `.claude-plugin/marketplace.json`：本地安装入口
-- ✅ **测试套件** [`tests/`](tests/)：67 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state / v0.7.0 +7 hedge & quiz）
+- ✅ **测试套件** [`tests/`](tests/)：76 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state / v0.7.0 +7 hedge & quiz / v0.8.0 +7 fidelity layer + 2 inject_context）
 - ✅ **手动 GC**（v0.6.1 新增）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md) slash 命令；`--dry-run`/`--apply` 互斥；默认 30 天阈值；只动 `${CLAUDE_PLUGIN_DATA}/sessions/`
 - ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
-- ⏳ Stop 钩子的**深度文件声明验证**（解析"我修改了 X" → 验 git diff / mtime；当前 v0.7.0 加深的是 self-quiz 这一面，**文件声明验真**仍是 v0.8 候选）
+- ⏳ Stop 钩子的**深度文件声明验证**（解析"我修改了 X" → 验 git diff / mtime；v0.7.0 加深 self-quiz、v0.8.0 加 fidelity 都是 message-side 启发式；**文件声明验真**仍是 v0.9 候选）
 - ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC；自动需要 last_gc.txt 节流）
-- ⏳ 英文 prompts（v0.6.2 翻了 rules/en/ 但 prompts/session-start.md 仍是中文 → 仅 Claude Code 中文用户受益于钩子注入；英文镜像主要用于复制到其他 LLM）
+- ⏳ 英文 prompts（v0.6.2 翻了 rules/en/、v0.8.0 同步了 rules/en/07-* 但 prompts/session-start.md 仍是中文 → 仅 Claude Code 中文用户受益于钩子注入；英文镜像主要用于复制到其他 LLM）
