@@ -103,6 +103,30 @@
 - 上述任意一项揭示 "遗漏 / 降级 / 偷换 / 半成品藏匿" → **回到检查 1** 或主动停下来跟用户对齐，**禁止**单方面宣告完成。
 - 禁止：**"主要部分都做了"** / **"应该覆盖了"** / 用户要 A、B、C 但只交付 A、B / 用户要"强制"但实现是"软建议" / 留 TODO 说"完成" / 用 rule 06 的收敛报告代替 rule 07 自答。
 
+### 2.10 改前必读、写前必想（rule 08 · 物理强制）
+
+> v0.11 新增。它把 rule 04（完整阅读）+ rule 02（七问）的最低必答子集**折叠为修改前置硬纪律**，并由 hooks 物理强制。
+
+- **改前必读** — 任何 `Edit` 之前，本会话**必须**：完整 Read 目标文件 + Read 所有调用点上下文（≥ 20 行）+ Read 所有同步连带文件（修 `rules/*.md` → 读 `prompts/` + `commands/` + `docs/RULES.md`；修 hook → 读 `hooks/hooks.json` + 本 doc §8 + 对应 `tests/test_*.py`）。
+- **写前必想** — 任何 `Edit` / `Write` 之前，必须在思维链或最终回复中**显式回答至少 3 项**：根因 / 架构定位 / 方案触底 / 连带影响 / 风险 / 方案对比。
+- **物理强制**：
+  - `PreToolUse(Edit|Write)`：未读已存在文件 → DENY（v0.3.2 read_guard，rule 04 + rule 08）
+  - `Stop` **layer (e)**：本轮做了 Edit 但回复缺"系统式自答"标记（< 3 个 rule-02 关键词 且无 rule 08 标记）→ BLOCK（v0.11）
+- 详见 [`rules/08-read-before-edit-think-before-write.md`](rules/08-read-before-edit-think-before-write.md)。
+
+### 2.11 系统式修改，禁止打补丁（rule 09 · 物理强制）
+
+> v0.11 新增。它把 rule 03（修根因）的"反偷懒"清单**结构化为修改通用纪律**，并在 PreToolUse new_string 内容层 + Stop 收尾层物理强制。
+
+- **修改必须系统性 + 完整性**，不允许局部打补丁。
+- **8 种打补丁式被禁**：局部 `try/except: pass` / 无 why 的 `# noqa` / `@ts-ignore` / `eslint-disable` / 在调用点包 wrapper 让异常消失但根因不动 / `time.sleep` 掩盖竞态 / 把测试断言放宽 / 把 timeout 拉长 / 注释掉失败测试 / 留 TODO 当作"完成" / rolling patches（同一文件本会话 ≥ 4 次小幅 Edit）。
+- **每处屏蔽标记必带 why 注释**才允许（含 `because` / `原因` / `why` / 显式说明）。
+- **物理强制**：
+  - `PreToolUse(Edit|Write)`：new_string 含未带 why 注释的 `try/except: pass` / `# noqa` / `# type: ignore` / `// @ts-ignore` / `// @ts-expect-error` / `// eslint-disable` / `time.sleep(...) # race/wait/workaround` → DENY（v0.11 patch-style detector）
+  - `PreToolUse(Bash)`：`--no-verify` / `--no-gpg-sign` / `git push --force` / `chmod 777` → DENY（v0.3 bash_guard）
+  - `Stop` **layer (f)**：本轮做了 Edit 但回复缺"根因 + 影响 + 方案"三件套标记 → BLOCK（v0.11）
+- 详见 [`rules/09-systematic-modification.md`](rules/09-systematic-modification.md)。
+
 ---
 
 ## 3. 仓库结构（开发者视角）
@@ -129,7 +153,9 @@ cc-enslaver/
 │   ├── 04-full-context.md
 │   ├── 05-cite-sources.md
 │   ├── 06-verify-convergence.md
-│   └── 07-task-fidelity.md
+│   ├── 07-task-fidelity.md
+│   ├── 08-read-before-edit-think-before-write.md  # v0.11
+│   └── 09-systematic-modification.md              # v0.11
 ├── prompts/                         # 给钩子注入用的提示词片段（汇总自 rules/）
 │   ├── session-start.md             # SessionStart 注入内容
 │   └── user-prompt.md               # UserPromptSubmit 注入内容
@@ -189,35 +215,48 @@ cc-enslaver/
 
 ## 6. 当前版本
 
-`v0.9.0` —— **项目重命名：`anti-laziness` → `cc-enslaver`（marketplace `agent-rigor` → `cc-enslaver`）**。所有五层名字（plugin name、marketplace name、GitHub repo、slash 命令前缀、状态目录基名）现在统一为单一标识符 `cc-enslaver`。无任何规则 / 钩子 / 测试行为变化，只是字面替换 + 版本号 bump。详见 `CHANGELOG.md` v0.9.0 段（含改名后果与连带影响）。
+`v0.11.0` —— **全面规范化 + 新增 rule 08（改前必读 / 写前必想）+ rule 09（系统式修改 / 禁止打补丁）+ Stop hook layer (e)+(f) + PreToolUse(Edit|Write) 补丁标记物理拦截**。
+
+本次版本一次性回答用户四个诉求：
+
+1. **全面规范化** — `prompts/session-start.md` 加入"标准回答骨架"（5 阶段模板）+ `prompts/user-prompt.md` 重构为结构化 9 条每轮自检 + 物理强制提示表 + `commands/checklist.md` 加入 E (rule 08) + F (rule 09) section + 统一图标系统（✅ / ⚠️ / ❌ / 🔍 / ✏️ / 🚨）；
+2. **改前必读 + 写前必想** — rule 08 落地（规则文 + prompts 注入 + checklist + Stop layer (e) 兜底）；
+3. **物理强制** — `PreToolUse(Edit|Write)` 新增 patch-style new_string 内容拦截（rule 09），`Stop` 从 4 层扩展为 6 层（layer (e) rule 08 / layer (f) rule 09），`state.py` 新增 `last_edit_turn` 字段把 layer (e)+(f) **仅作用于"实际做了 Edit 的 turn"**（避免误伤纯分析 / 答疑回合）；
+4. **系统式修改 / 禁止打补丁** — rule 09 落地（含 8 类禁令 + 6 种 patch marker regex + 多种 rationale token + Stop layer (f) "根因 + 影响 + 方案" 三件套兜底）。
 
 之前版本要点保留：
 
-- **v0.8.0** —— 新增 rule 07（任务忠实 / 请求覆盖 / 无降级）+ Stop hook Layer (d) 强制收尾自答。rule 06 解决"症状-根因"轴（修的部分对不对），rule 07 解决"请求-交付"轴（用户要的全做了吗、按原标准做了吗）。两轴不同维度，**必须分别回答**。Layer (d) 在 (a)(b)(c) 全过后再检查：含 done-claim + evidence + rule-06 自答，**且**有 rule-07 标记（`rule 07` / `任务忠实` / `请求覆盖` / `无降级` / `task fidelity` / `no degradation` / ✅ 完成 列表行等）**或**至少 2/3 自答题（覆盖性 / 标准性 / 忠实性）匹配，才允许 Stop。
+- **v0.10.0** —— `systematic-debug` skill 加入 Step 0 = build feedback loop（10 种 loop 形态 + 4-question 检查）。
+- **v0.9.1** —— Stop hook 修复 silent no-op bug（v0.6.0-v0.9.0 期间 layer (a-d) 实际未触发，根因是 transcript JSONL 字段路径错误 + 尾部 tool_use 覆写）。
+- **v0.9.0** —— 项目重命名 `anti-laziness` → `cc-enslaver`。
+- **v0.8.0** —— 新增 rule 07（任务忠实 / 请求覆盖 / 无降级）+ Stop hook Layer (d) 强制收尾自答。
 
 - ✅ 标准 Claude Code 插件目录结构
-- ✅ `rules/` **7** 条核心规则（中文 canonical + v0.6.2 / v0.8.0 同步的 [`rules/en/`](rules/en/) 英文镜像）
-- ✅ SessionStart / UserPromptSubmit 钩子注入（软层）
-- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**（v0.3.2）：Read 录入会话状态、Edit/Write 检查未读已存在文件 → deny
+- ✅ `rules/` **9** 条核心规则（中文 canonical + [`rules/en/`](rules/en/) 英文镜像，v0.6.2 / v0.8.0 / v0.11.0 同步）
+- ✅ SessionStart / UserPromptSubmit 钩子注入（软层 + v0.11 加入"标准回答骨架"与"每轮硬性自检清单"）
+- ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**：Read 录入、Edit/Write 检查未读已存在文件 → DENY；Edit/Write 检查 new_string 补丁标记 → DENY（v0.11）；成功 Edit/Write 记录 `last_edit_turn`（v0.11）
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
 - ✅ **Read-cache escape hatch**（v0.4.0）：`register_read.py` + `bash_guard` 重算 SHA-256 闸门
-- ✅ **Stop 钩子四层决策**（v0.6.0 → v0.7.0 → v0.8.0 累加）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息：
+- ✅ **Stop 钩子六层决策**（v0.6.0 → v0.7.0 → v0.8.0 → v0.11.0 累加）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息：
   - **Layer (a) v0.6.0**：含 done-claim 但完全无 evidence → 拒（rule 06 base）
-  - **Layer (b) v0.7.0**：含 done-claim + hedge 在 50 字符内（`我觉得` / `I think` / `probably` 等首人称不确定语）→ 拒（rule 01 投影）
-  - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记（`rule 06` / `自答` / `收敛` / `重触发` 等）**且** 4 题（真解决 / 更好方案 / 哪些没验 / 验证合理）匹配 < 2 → 拒（rule 06 deep）
-  - **Layer (d) v0.8.0**：通过 (a)(b)(c) 但缺忠实标记（`rule 07` / `任务忠实` / `请求覆盖` / `原始请求` / `无降级` / `无遗漏` / `task fidelity` / `request coverage` / `no degradation` / `no omission` / `no scope creep` / `covered all` / `all requested` / ✅ 完成 列表行）**且** 3 题（覆盖性 / 标准性 / 忠实性）匹配 < 2 → 拒（rule 07）
+  - **Layer (b) v0.7.0**：含 done-claim + hedge 在 50 字符内 → 拒（rule 01 投影）
+  - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记 且自答 4 题命中 < 2 → 拒（rule 06 deep）
+  - **Layer (d) v0.8.0**：通过 (a)(b)(c) 但缺忠实标记 且自答 3 题命中 < 2 → 拒（rule 07）
+  - **Layer (e) v0.11.0**：本轮 `last_edit_turn == turn_count` 且缺 rule-08 标记 且 rule-02 关键词命中 < 3 → 拒（rule 08）
+  - **Layer (f) v0.11.0**：本轮做了 Edit 且缺 rule-09 标记 且"根因 + 影响 + 方案"三件套不全 → 拒（rule 09）
   - 一次性守卫：`last_blocked_turn` 持久化，turn ∈ `[last+1, last+3]` 宽限窗口内不重复 block
-- ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（路径规范化、跨平台、failing-open）
-- ✅ 2 个 slash 命令
+- ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（`read_files` / `last_blocked_turn` / `last_edit_turn`；路径规范化、跨平台、failing-open）
+- ✅ 2 个 slash 命令（`/cc-enslaver:checklist` + `/cc-enslaver:verify` + `/cc-enslaver:gc`）
 - ✅ 1 个 verifier 子代理
-- ✅ 1 个 systematic-debug 自动唤起 skill
+- ✅ 1 个 systematic-debug 自动唤起 skill（v0.10 加入 Step 0 = build feedback loop）
 - ✅ `.claude-plugin/marketplace.json`：本地安装入口
-- ✅ **测试套件** [`tests/`](tests/)：76 个 unittest（v0.6.0 +16 stop_guard / v0.6.1 +9 gc_state / v0.7.0 +7 hedge & quiz / v0.8.0 +7 fidelity layer + 2 inject_context）
-- ✅ **手动 GC**（v0.6.1 新增）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md) slash 命令；`--dry-run`/`--apply` 互斥；默认 30 天阈值；只动 `${CLAUDE_PLUGIN_DATA}/sessions/`
+- ✅ **测试套件** [`tests/`](tests/)：v0.11 新增 layer (e)/(f) + patch-style + record_edit_turn 测试
+- ✅ **手动 GC**（v0.6.1）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md)
 - ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
 未实现（见 [`CHANGELOG.md`](CHANGELOG.md) 路线图）：
 
-- ⏳ Stop 钩子的**深度文件声明验证**（解析"我修改了 X" → 验 git diff / mtime；v0.7.0 加深 self-quiz、v0.8.0 加 fidelity 都是 message-side 启发式；**文件声明验真**仍是 v0.9 候选）
-- ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC；自动需要 last_gc.txt 节流）
-- ⏳ 英文 prompts（v0.6.2 翻了 rules/en/、v0.8.0 同步了 rules/en/07-* 但 prompts/session-start.md 仍是中文 → 仅 Claude Code 中文用户受益于钩子注入；英文镜像主要用于复制到其他 LLM）
+- ⏳ Stop 钩子的**深度文件声明验证**（解析"我修改了 X" → 验 git diff / mtime）
+- ⏳ Auto-GC on SessionStart（v0.6.1 只做了手动 GC）
+- ⏳ Rolling-patch PreToolUse 硬拦截（v0.11 仅 Stop layer (f) 软层兜底 + rule 09 doc 软纪律；硬拦截需 `edits_per_file` 计数器）
+- ⏳ 英文 prompts（v0.6.2 / v0.11 翻了 rules/en/ 全部 9 条，但 prompts/ 仍是中文）
