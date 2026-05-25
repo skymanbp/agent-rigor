@@ -144,7 +144,8 @@ cc-enslaver/
 ├── .gitignore
 ├── docs/
 │   ├── ARCHITECTURE.md              # 架构说明（开发者向）
-│   └── RULES.md                     # 规则目录索引（详细解释每条规则）
+│   ├── RULES.md                     # 规则目录索引
+│   └── EDICTS.md                    # 圣旨使用指南（v0.12）
 ├── rules/                           # ★ LLM-agnostic 规则源文件（纯 Markdown）
 │   ├── 00-index.md
 │   ├── 01-verify-dont-guess.md
@@ -155,22 +156,35 @@ cc-enslaver/
 │   ├── 06-verify-convergence.md
 │   ├── 07-task-fidelity.md
 │   ├── 08-read-before-edit-think-before-write.md  # v0.11
-│   └── 09-systematic-modification.md              # v0.11
-├── prompts/                         # 给钩子注入用的提示词片段（汇总自 rules/）
-│   ├── session-start.md             # SessionStart 注入内容
-│   └── user-prompt.md               # UserPromptSubmit 注入内容
+│   ├── 09-systematic-modification.md              # v0.11
+│   └── en/                                        # 英文镜像（v0.6.2+）
+├── prompts/                         # 给钩子注入用的提示词片段（v0.12 瘦身 54%）
+│   ├── session-start.md             # SessionStart 注入（89 行高密度表）
+│   └── user-prompt.md               # UserPromptSubmit 注入（31 行决策表）
 ├── hooks/
 │   ├── hooks.json                   # 钩子注册（Claude Code 适配层）
 │   └── scripts/
-│       └── inject_context.py        # 单一脚本，按 --event 切分注入逻辑
+│       ├── inject_context.py        # 软层：会话/每轮注入（含圣旨注入）
+│       ├── read_guard.py            # PreToolUse(Read|Edit|Write) 守卫
+│       ├── bash_guard.py            # PreToolUse(Bash) 守卫
+│       ├── register_read.py         # Read-cache escape hatch (v0.4)
+│       ├── stop_guard.py            # Stop 6 层决策（v0.12 表格化输出）
+│       ├── gc_state.py              # 手动 GC (v0.6.1)
+│       ├── manage_edicts.py         # 圣旨 CRUD CLI (v0.12)
+│       └── lib/
+│           ├── state.py             # 跨钩子持久状态
+│           └── edicts.py            # 圣旨加载/注入/匹配 (v0.12)
 ├── commands/                        # 用户主动调用的 slash 命令
 │   ├── checklist.md                 # /cc-enslaver:checklist
-│   └── verify.md                    # /cc-enslaver:verify
-├── agents/                          # 子代理
+│   ├── verify.md                    # /cc-enslaver:verify
+│   ├── gc.md                        # /cc-enslaver:gc
+│   └── edict.md                     # /cc-enslaver:edict (v0.12)
+├── agents/
 │   └── verifier.md                  # 独立验证子代理
-└── skills/
-    └── systematic-debug/
-        └── SKILL.md                 # 在 debug/修 bug 语境下自动唤起
+├── skills/
+│   └── systematic-debug/
+│       └── SKILL.md                 # debug 语境自动唤起
+└── tests/                           # 135 个黑盒测试（v0.12 +31）
 ```
 
 **核心分工（"为什么这样切"）：**
@@ -215,17 +229,24 @@ cc-enslaver/
 
 ## 6. 当前版本
 
-`v0.11.0` —— **全面规范化 + 新增 rule 08（改前必读 / 写前必想）+ rule 09（系统式修改 / 禁止打补丁）+ Stop hook layer (e)+(f) + PreToolUse(Edit|Write) 补丁标记物理拦截**。
+`v0.12.0` —— **圣旨（Imperial Edicts）+ Stop 输出表格化 + prompts 瘦身 54%**。
 
-本次版本一次性回答用户四个诉求：
+v0.12 一次性回答用户三个使用反馈：
 
-1. **全面规范化** — `prompts/session-start.md` 加入"标准回答骨架"（5 阶段模板）+ `prompts/user-prompt.md` 重构为结构化 9 条每轮自检 + 物理强制提示表 + `commands/checklist.md` 加入 E (rule 08) + F (rule 09) section + 统一图标系统（✅ / ⚠️ / ❌ / 🔍 / ✏️ / 🚨）；
-2. **改前必读 + 写前必想** — rule 08 落地（规则文 + prompts 注入 + checklist + Stop layer (e) 兜底）；
-3. **物理强制** — `PreToolUse(Edit|Write)` 新增 patch-style new_string 内容拦截（rule 09），`Stop` 从 4 层扩展为 6 层（layer (e) rule 08 / layer (f) rule 09），`state.py` 新增 `last_edit_turn` 字段把 layer (e)+(f) **仅作用于"实际做了 Edit 的 turn"**（避免误伤纯分析 / 答疑回合）；
-4. **系统式修改 / 禁止打补丁** — rule 09 落地（含 8 类禁令 + 6 种 patch marker regex + 多种 rationale token + Stop layer (f) "根因 + 影响 + 方案" 三件套兜底）。
+1. **软层提醒强度不够** — `session-start.md` 219 → 89 行 + `user-prompt.md` 41 → 31 行（共瘦身 54%）。9 条规则改成单行表格、物理强制改成 4 行触发表、回复骨架改成 5 行阶段表，密度大幅提升以抵御 context 老化。
+2. **Stop 收尾杂乱** — 6 层独立长说教（每层 ~50 行）改为**统一格式**：每个 block reason 必含 `cc-enslaver · Stop check FAILED at Layer (X) [rule NN]` 标题 + 6 行状态表（✅ Pass / ❌ FAIL / ⏸ pending / — n/a）+ 仅失败层的 5-10 行 Recovery + 一次性守卫脚注。`stop_guard.py` 通过 `LAYER_META` + `_render_status_table` + `_build_block_reason` 统一渲染；8 个新测试锁定格式契约。
+3. **圣旨 / Imperial Edicts** —— 项目级用户自定义硬规则系统。
+   - 文件：`${CLAUDE_PROJECT_DIR}/.claude/cc-enslaver/edicts.toml`（项目级，可入 git；fallback 到 `~/.claude/cc-enslaver/edicts.toml`）
+   - 格式：TOML 数组 `[[edicts]]`，字段 `id` / `text` / `severity` (`must`|`should`) / `deny_edit` / `deny_bash` / `note`
+   - 注入：`SessionStart` + `UserPromptSubmit` 都注入（每轮重注入抵御 context 老化）
+   - 物理强制：`PreToolUse(Edit|Write)` 扫 `new_string`、`PreToolUse(Bash)` 扫 `command`，命中 must edict 即 DENY
+   - 管理：`/cc-enslaver:edict list / add / remove / reload / path` slash command + `hooks/scripts/manage_edicts.py` CRUD CLI
+   - 设计契约：内置 9 条规则**先跑**、圣旨**后跑**——圣旨不能用来 whitelist `--no-verify` 等内置绕过拦截
+   - 文档：[`docs/EDICTS.md`](docs/EDICTS.md)
 
 之前版本要点保留：
 
+- **v0.11.0** —— rule 08 (改前必读 / 写前必想) + rule 09 (系统式修改 / 禁止打补丁) + Stop layer (e)+(f) + PreToolUse(Edit|Write) 补丁标记物理拦截。
 - **v0.10.0** —— `systematic-debug` skill 加入 Step 0 = build feedback loop（10 种 loop 形态 + 4-question 检查）。
 - **v0.9.1** —— Stop hook 修复 silent no-op bug（v0.6.0-v0.9.0 期间 layer (a-d) 实际未触发，根因是 transcript JSONL 字段路径错误 + 尾部 tool_use 覆写）。
 - **v0.9.0** —— 项目重命名 `anti-laziness` → `cc-enslaver`。
@@ -246,11 +267,12 @@ cc-enslaver/
   - **Layer (f) v0.11.0**：本轮做了 Edit 且缺 rule-09 标记 且"根因 + 影响 + 方案"三件套不全 → 拒（rule 09）
   - 一次性守卫：`last_blocked_turn` 持久化，turn ∈ `[last+1, last+3]` 宽限窗口内不重复 block
 - ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（`read_files` / `last_blocked_turn` / `last_edit_turn`；路径规范化、跨平台、failing-open）
-- ✅ 2 个 slash 命令（`/cc-enslaver:checklist` + `/cc-enslaver:verify` + `/cc-enslaver:gc`）
+- ✅ 4 个 slash 命令（`/cc-enslaver:checklist` + `/cc-enslaver:verify` + `/cc-enslaver:gc` + `/cc-enslaver:edict`（**v0.12**））
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill（v0.10 加入 Step 0 = build feedback loop）
 - ✅ `.claude-plugin/marketplace.json`：本地安装入口
-- ✅ **测试套件** [`tests/`](tests/)：v0.11 新增 layer (e)/(f) + patch-style + record_edit_turn 测试
+- ✅ **测试套件** [`tests/`](tests/) **135 个**：v0.12 新增 `test_edicts.py`（23 个 — 加载 / 注入 / Edit/Write/Bash DENY / severity gating / 内置先跑）+ `TestV012StatusTableFormat`（8 个 — Stop 表格格式契约）
+- ✅ **圣旨（v0.12）**：[`hooks/scripts/lib/edicts.py`](hooks/scripts/lib/edicts.py) + [`manage_edicts.py`](hooks/scripts/manage_edicts.py) + [`commands/edict.md`](commands/edict.md) + [`docs/EDICTS.md`](docs/EDICTS.md)
 - ✅ **手动 GC**（v0.6.1）：[`hooks/scripts/gc_state.py`](hooks/scripts/gc_state.py) + [`commands/gc.md`](commands/gc.md)
 - ✅ **GitHub Actions CI**（v0.5.1）：matrix `ubuntu-latest` × `windows-latest` × Python `3.13`
 
