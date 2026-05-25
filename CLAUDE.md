@@ -116,13 +116,14 @@
 
 ### 2.11 系统式修改，禁止打补丁（rule 09 · 物理强制）
 
-> v0.11 新增。它把 rule 03（修根因）的"反偷懒"清单**结构化为修改通用纪律**，并在 PreToolUse new_string 内容层 + Stop 收尾层物理强制。
+> v0.11 新增；v0.13 加入 rolling-patch 频率层。它把 rule 03（修根因）的"反偷懒"清单**结构化为修改通用纪律**，并在 PreToolUse new_string 内容层 + PreToolUse 频率层 + Stop 收尾层物理强制。
 
 - **修改必须系统性 + 完整性**，不允许局部打补丁。
-- **8 种打补丁式被禁**：局部 `try/except: pass` / 无 why 的 `# noqa` / `@ts-ignore` / `eslint-disable` / 在调用点包 wrapper 让异常消失但根因不动 / `time.sleep` 掩盖竞态 / 把测试断言放宽 / 把 timeout 拉长 / 注释掉失败测试 / 留 TODO 当作"完成" / rolling patches（同一文件本会话 ≥ 4 次小幅 Edit）。
+- **打补丁式被禁**：局部 `try/except: pass` / 无 why 的 `# noqa` / `@ts-ignore` / `eslint-disable` / 在调用点包 wrapper 让异常消失但根因不动 / `time.sleep` 掩盖竞态 / 把测试断言放宽 / 把 timeout 拉长 / 注释掉失败测试 / 留 TODO 当作"完成" / **rolling patches（同一文件本会话 ≥ 4 次小幅 Edit）**。
 - **每处屏蔽标记必带 why 注释**才允许（含 `because` / `原因` / `why` / 显式说明）。
 - **物理强制**：
-  - `PreToolUse(Edit|Write)`：new_string 含未带 why 注释的 `try/except: pass` / `# noqa` / `# type: ignore` / `// @ts-ignore` / `// @ts-expect-error` / `// eslint-disable` / `time.sleep(...) # race/wait/workaround` → DENY（v0.11 patch-style detector）
+  - `PreToolUse(Edit|Write)` **内容层**：new_string 含未带 why 注释的 `try/except: pass` / `# noqa` / `# type: ignore` / `// @ts-ignore` / `// @ts-expect-error` / `// eslint-disable` / `time.sleep(...) # race/wait/workaround` → DENY（v0.11 patch-style detector）
+  - `PreToolUse(Edit|Write)` **频率层（v0.13）**：同一文件本会话第 4 次小幅 Edit（≤ 10 行 且 < 200 字符）且**没有**一次系统式重写（≥ 50 行 / ≥ 1500 字符）介入 → DENY；DENY 时不增计数器，后续小 Edit 持续被拦，直到一次系统式 Edit/Write 把计数器清 0。
   - `PreToolUse(Bash)`：`--no-verify` / `--no-gpg-sign` / `git push --force` / `chmod 777` → DENY（v0.3 bash_guard）
   - `Stop` **layer (f)**：本轮做了 Edit 但回复缺"根因 + 影响 + 方案"三件套标记 → BLOCK（v0.11）
 - 详见 [`rules/09-systematic-modification.md`](rules/09-systematic-modification.md)。
