@@ -160,8 +160,11 @@ cc-enslaver/
 │   ├── 09-systematic-modification.md              # v0.11
 │   └── en/                                        # 英文镜像（v0.6.2+）
 ├── prompts/                         # 给钩子注入用的提示词片段（v0.12 瘦身 54%）
-│   ├── session-start.md             # SessionStart 注入（89 行高密度表）
-│   └── user-prompt.md               # UserPromptSubmit 注入（31 行决策表）
+│   ├── session-start.md             # SessionStart 注入（中文 canonical）
+│   ├── user-prompt.md               # UserPromptSubmit 注入（中文 canonical）
+│   └── en/                          # 英文镜像（v0.15；CC_ENSLAVER_LANG=en 切换）
+│       ├── session-start.md
+│       └── user-prompt.md
 ├── hooks/
 │   ├── hooks.json                   # 钩子注册（Claude Code 适配层）
 │   └── scripts/
@@ -225,6 +228,7 @@ cc-enslaver/
 - 平台：Windows 11 + VS Code + Claude Code 扩展 + Git Bash
 - Python：`C:/Users/skyma/AppData/Local/Programs/Python/Python313/python.exe`（也在 PATH 上）
 - 规则源语言：中文（与用户主语言一致；技术文档/代码注释为英文）
+- 注入语言切换（v0.15）：默认中文；设置环境变量 `CC_ENSLAVER_LANG=en` 切换为英文注入（读 `prompts/en/*.md`），未知值 / 未设置回退中文
 
 ---
 
