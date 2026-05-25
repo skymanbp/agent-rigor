@@ -263,15 +263,16 @@ v0.12 一次性回答用户三个使用反馈：
 - ✅ **PreToolUse(Read\|Edit\|Write) 统一处理**：Read 录入、Edit/Write 检查未读已存在文件 → DENY；Edit/Write 检查 new_string 补丁标记 → DENY（v0.11）；成功 Edit/Write 记录 `last_edit_turn`（v0.11）
 - ✅ **PreToolUse(Bash) 绕过模式硬拦截**：`--no-verify` / `--no-gpg-sign` / `git push --force`（不含 `--force-with-lease`） / `chmod 777` 命中即 deny
 - ✅ **Read-cache escape hatch**（v0.4.0）：`register_read.py` + `bash_guard` 重算 SHA-256 闸门
-- ✅ **Stop 钩子六层决策**（v0.6.0 → v0.7.0 → v0.8.0 → v0.11.0 累加）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息：
+- ✅ **Stop 钩子七层决策**（v0.6.0 → v0.7.0 → v0.8.0 → v0.11.0 → v0.16.0 累加）：[`stop_guard.py`](hooks/scripts/stop_guard.py) 在每次 Stop 检查 agent 末尾消息：
   - **Layer (a) v0.6.0**：含 done-claim 但完全无 evidence → 拒（rule 06 base）
   - **Layer (b) v0.7.0**：含 done-claim + hedge 在 50 字符内 → 拒（rule 01 投影）
   - **Layer (c) v0.7.0**：含 done-claim + evidence 但缺收敛标记 且自答 4 题命中 < 2 → 拒（rule 06 deep）
   - **Layer (d) v0.8.0**：通过 (a)(b)(c) 但缺忠实标记 且自答 3 题命中 < 2 → 拒（rule 07）
   - **Layer (e) v0.11.0**：本轮 `last_edit_turn == turn_count` 且缺 rule-08 标记 且 rule-02 关键词命中 < 3 → 拒（rule 08）
   - **Layer (f) v0.11.0**：本轮做了 Edit 且缺 rule-09 标记 且"根因 + 影响 + 方案"三件套不全 → 拒（rule 09）
+  - **Layer (g) v0.16.0**：本轮做了 Edit 且解析出 "I edited X.py / 我修改了 Y.md" 类声明 且**有基线**且**磁盘 mtime 与基线一致**（claim 被证伪）→ 拒（rule 01 + 06；保守设计：只在能确凿证伪时拦，无基线 / 任何歧义 → 放行；`CC_ENSLAVER_DISABLE_LAYER_G=1` 为 escape hatch）
   - 一次性守卫：`last_blocked_turn` 持久化，turn ∈ `[last+1, last+3]` 宽限窗口内不重复 block
-- ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（`read_files` / `last_blocked_turn` / `last_edit_turn`；路径规范化、跨平台、failing-open）
+- ✅ 跨钩子持久状态：`${CLAUDE_PLUGIN_DATA}/sessions/<sid>.json`（`read_files` / `last_blocked_turn` / `last_edit_turn` / `edits_per_file` (v0.13) / `baseline_mtimes` (v0.16)；路径规范化、跨平台、failing-open）
 - ✅ 4 个 slash 命令（`/cc-enslaver:checklist` + `/cc-enslaver:verify` + `/cc-enslaver:gc` + `/cc-enslaver:edict`（**v0.12**））
 - ✅ 1 个 verifier 子代理
 - ✅ 1 个 systematic-debug 自动唤起 skill（v0.10 加入 Step 0 = build feedback loop）
