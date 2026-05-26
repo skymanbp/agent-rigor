@@ -234,23 +234,26 @@ cc-enslaver/
 
 ## 6. 当前版本
 
-`v0.12.0` —— **圣旨（Imperial Edicts）+ Stop 输出表格化 + prompts 瘦身 54%**。
+`v0.18.0` —— **Auto-GC on SessionStart（opt-in via `CC_ENSLAVER_AUTO_GC_DAYS`）**。
 
-v0.12 一次性回答用户三个使用反馈：
+v0.18 闭合 v0.6.1 roadmap 最后一项：
 
-1. **软层提醒强度不够** — `session-start.md` 219 → 89 行 + `user-prompt.md` 41 → 31 行（共瘦身 54%）。9 条规则改成单行表格、物理强制改成 4 行触发表、回复骨架改成 5 行阶段表，密度大幅提升以抵御 context 老化。
-2. **Stop 收尾杂乱** — 6 层独立长说教（每层 ~50 行）改为**统一格式**：每个 block reason 必含 `cc-enslaver · Stop check FAILED at Layer (X) [rule NN]` 标题 + 6 行状态表（✅ Pass / ❌ FAIL / ⏸ pending / — n/a）+ 仅失败层的 5-10 行 Recovery + 一次性守卫脚注。`stop_guard.py` 通过 `LAYER_META` + `_render_status_table` + `_build_block_reason` 统一渲染；8 个新测试锁定格式契约。
-3. **圣旨 / Imperial Edicts** —— 项目级用户自定义硬规则系统。
-   - 文件：`${CLAUDE_PROJECT_DIR}/.claude/cc-enslaver/edicts.toml`（项目级，可入 git；fallback 到 `~/.claude/cc-enslaver/edicts.toml`）
-   - 格式：TOML 数组 `[[edicts]]`，字段 `id` / `text` / `severity` (`must`|`should`) / `deny_edit` / `deny_bash` / `note`
-   - 注入：`SessionStart` + `UserPromptSubmit` 都注入（每轮重注入抵御 context 老化）
-   - 物理强制：`PreToolUse(Edit|Write)` 扫 `new_string`、`PreToolUse(Bash)` 扫 `command`，命中 must edict 即 DENY
-   - 管理：`/cc-enslaver:edict list / add / remove / reload / path` slash command + `hooks/scripts/manage_edicts.py` CRUD CLI
-   - 设计契约：内置 9 条规则**先跑**、圣旨**后跑**——圣旨不能用来 whitelist `--no-verify` 等内置绕过拦截
-   - 文档：[`docs/EDICTS.md`](docs/EDICTS.md)
+- **触发**：环境变量 `CC_ENSLAVER_AUTO_GC_DAYS=N`（正整数）启用；未设 / `0` / 非数字 → 关闭（默认，向后兼容）。
+- **机制**：`inject_context.py` 在 SessionStart 时调用从 `gc_state.py` 抽出来的共享函数 `prune_old_sessions(threshold_days, *, dry_run=False, exclude_session=None)`，删除 ≥ N 天未触碰的 `<state_dir>/*.json`。
+- **限速**：marker 文件 `<state_dir>/_auto_gc.json` 记录 `{ts, deleted}`；< 24h 内重启 SessionStart 不重跑（快速重启不付 O(state_dir) 扫描代价）。
+- **保护**：`_GC_INTERNAL_FILES = {"_auto_gc.json"}` 显式 allowlist；marker 本身永不被 GC。
+- **failing-open**：env 解析 / state_dir / marker IO / GC 调用 / marker 写入逐层 try/except，失败仅 stderr 不阻塞注入。
+- **手动 `/cc-enslaver:gc` 仍可用**，两个入口共享同一份 `prune_old_sessions()`。
+- 10 个新测试 (`TestAutoGCOnSessionStart` × 8 + `TestPruneFunctionDirect` × 2)。
 
 之前版本要点保留：
 
+- **v0.17.0** —— Imperial Edicts (圣旨) 双语适配（`CC_ENSLAVER_LANG=en` 贯通到 edict 注入 + DENY reason）+ Windows portability（drive-letter path regex / manage_edicts UTF-8 stdout）+ README 大改（6 → 7 层 Stop / repo tree 全量重写）。
+- **v0.16.0** —— Stop hook Layer (g) 文件声明验证（rule 01+06；解析 "I edited X.py" 类声明并与 mtime 基线对比；`CC_ENSLAVER_DISABLE_LAYER_G=1` escape hatch）。
+- **v0.15.0** —— English prompts 镜像（`prompts/en/`）+ `CC_ENSLAVER_LANG=en` 切换。
+- **v0.14.0** —— 3 个新 Bash 绕过模式（`git rebase --skip` / `--break-system-packages` / `rm -rf` 根路径）+ 圣旨 `--global` flag + CLI 子进程测试。
+- **v0.13.0** —— rule 09 rolling-patch 频率层硬拦截（`PreToolUse(Edit|Write)` 同一文件第 4 次小幅 Edit → DENY，系统式重写 ≥ 50 行 / ≥ 1500 字符 重置计数器）。
+- **v0.12.0** —— 圣旨（Imperial Edicts）+ Stop 输出表格化 + prompts 瘦身 54%。
 - **v0.11.0** —— rule 08 (改前必读 / 写前必想) + rule 09 (系统式修改 / 禁止打补丁) + Stop layer (e)+(f) + PreToolUse(Edit|Write) 补丁标记物理拦截。
 - **v0.10.0** —— `systematic-debug` skill 加入 Step 0 = build feedback loop（10 种 loop 形态 + 4-question 检查）。
 - **v0.9.1** —— Stop hook 修复 silent no-op bug（v0.6.0-v0.9.0 期间 layer (a-d) 实际未触发，根因是 transcript JSONL 字段路径错误 + 尾部 tool_use 覆写）。
